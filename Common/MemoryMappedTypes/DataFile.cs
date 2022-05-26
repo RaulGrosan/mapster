@@ -17,6 +17,26 @@ public delegate bool MapFeatureDelegate(MapFeatureData featureData);
 /// <summary>
 ///     Aggregation of all the data needed to render a map feature
 /// </summary>
+/// 
+public enum GeographicCategories : int
+{
+    admin_level,
+    amenity,
+    boundary,
+    building,
+    farm,
+    highway,
+    landuse,
+    leisure,
+    name,
+    natural,
+    place,
+    railway,
+    reservoir,
+    residential,
+    water,
+}
+
 public readonly ref struct MapFeatureData
 {
     public long Id { get; init; }
@@ -24,7 +44,7 @@ public readonly ref struct MapFeatureData
     public GeometryType Type { get; init; }
     public ReadOnlySpan<char> Label { get; init; }
     public ReadOnlySpan<Coordinate> Coordinates { get; init; }
-    public Dictionary<string, string> Properties { get; init; }
+    public Dictionary<GeographicCategories, string> Properties { get; init; }
 }
 
 /// <summary>
@@ -181,11 +201,15 @@ public unsafe class DataFile : IDisposable
 
                 if (isFeatureInBBox)
                 {
-                    var properties = new Dictionary<string, string>(feature->PropertyCount);
+                    var properties = new Dictionary<GeographicCategories, string>(feature->PropertyCount);
                     for (var p = 0; p < feature->PropertyCount; ++p)
                     {
                         GetProperty(header.Tile.Value.StringsOffsetInBytes, header.Tile.Value.CharactersOffsetInBytes, p * 2 + feature->PropertiesOffset, out var key, out var value);
-                        properties.Add(key.ToString(), value.ToString());
+                        if (Enum.IsDefined(typeof(GeographicCategories), key.ToString()))
+                        {
+                            GeographicCategories geoTypeKey = (GeographicCategories)Enum.Parse(typeof(GeographicCategories), key.ToString());
+                            properties.Add(geoTypeKey, value.ToString());
+                        }
                     }
 
                     if (!action(new MapFeatureData
